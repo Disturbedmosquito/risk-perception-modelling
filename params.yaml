@@ -1,6 +1,8 @@
+# Generated from propose_new_param_config in pre_run_sensitivity.py
+
 fixed:
   N: 8800000 # Quebec's population
-  rho: 0.095 # Average 1-2 weeks report delay, so 1/10.5 days
+  rho: 0.095 # Average 1-2 weeks report delay for covid-19 in quebec, so 1/10.5 days
   epsilon: 0.25 
   phi: 0.25
   compliance_max: 0.8
@@ -13,11 +15,16 @@ free_names:
 - delta
 - k
 - log_theta
-- I0
-- C0
-- P0
-- F0
-- R0
+- I0 # y0 parameters
+- C0 #
+- P0 #
+- F0 #
+- R0 #
+- a1    # 7 day harmonic params
+- b1    #
+- a2    #
+- b2    #
+- delay_mean
 # These were edited manually after the Morris screening. 
 # Reason being that our fit algorithms require y0 parameters
 # (initial states for I, C, P, F and R) to be provided, and
@@ -28,22 +35,26 @@ free_names:
 # because these parameters are not particularly interesting
 # to study.
 
-# Kept log_theta for model fitting to work through noise.
+# Kept log_theta and delay_mean for model fitting to work through noise.
 bounds:
 - [0.05, 2.0]
-- [0.05, 0.5]
-- [0.0, 2.0]
+- [0.05, 1.0]
+- [0.0, 5.0]
 - [0.05, 1.0]
 - [0.0, 1.0]
-- [0.5, 8.0]
+- [0.5, 15.0]
 - [-5.0, 5.0]
-- [1.0, 100.0]
-- [1.0, 100.0]
+- [1.0, 8800000]
+- [1.0, 8800000]
 - [0.0, 0.95]
 - [0.0, 1.0]
-- [0.0, 100.0]
+- [0.0, 8800000]
+- [-0.5, 0.5]  # a1
+- [-0.5, 0.5]  # b1
+- [-0.5, 0.5]  # a2
+- [-0.5, 0.5]  # b2
+- [2.0, 5.0] 
 obs:
-  delay_mean: 3.0
   delay_sd: 2.0
   delay_maxlag: 14
 fit:
@@ -52,6 +63,7 @@ fit:
   pso_iters: 200
   local_seeds: 8
   seed: 123
+  y0_anchor_weight: 100
 cv:
   initial_train: 150
   horizons:
@@ -71,8 +83,4 @@ profiles:
   alpha:
   - 0.0
   - 2.0
-  - 21
-  rho:
-  - 0.05
-  - 0.9
   - 21

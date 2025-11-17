@@ -1,28 +1,68 @@
+"""
+Defines the core SIRC-PF model dynamics.
+
+This module contains ODE equation system function for the
+SIRC-PF (Susceptible, Infected, Reported Cases, Recovered, Perceived Risk,
+Fatigue) compartment model. It also includes a `simulate` wrapper
+to run deterministic simulations using `scipy.integrate.solve_ivp`.
+
+The model incorporates behavioral dynamics where public risk perception 
+(`P`) and behavioral fatigue (`F`) endogenously control the effective 
+contact rate (`beta_eff`) via a negative feedback loop and a compliance 
+function.
+
+"""
 from __future__ import annotations
 import numpy as np
 from scipy.integrate import solve_ivp
 
 def sirc_pf_rhs(t, y, pars):
     """
-    v2 dynamics with the original signature:
-      - Inputs: (t, y, pars) where y = [S, I, C, R, P, F]
-      - Returns: a numpy array [dSdt, dIdt, dCdt, dRdt, dPdt, dFdt] of dtype float
+    Defines the SIRC-PF ODE system. Calculates the derivatives for the 
+    6 state variables: [S, I, C, R, P, F] based on the current state 
+    `y` and the parameters in `pars`.
 
-    Expected keys in `pars` (existing names kept; new ones have safe defaults):
+    Includes:
+    - Epidemic dynamics (SIRC compartments).
+    - Behavioral dynamics (P and F compartments).
+    - A sigmoidal compliance function linking P to transmission reduction.
+    - A Hill function linking reported cases C to perception P.
+    - Parameter clipping inside the function to ensure
+      numerical stability during optimization.
+
+    Parameters
+    ----------
+    t : float
+        The current time (ignored, as the system is autonomous).
+    y : np.ndarray
+        The 6-state vector [S, I, C, R, P, F].
+    pars : dict
+        A dictionary containing all necessary model parameters
+        (e.g., N, beta0, gamma, rho, alpha, delta0, epsilon, phi, etc.).
+
+    Returns
+    -------
+    np.ndarray
+        A 1D float array of the 6 derivatives
+        [dSdt, dIdt, dCdt, dRdt, dPdt, dFdt].
+
+    Notes
+    --------
+    Expected keys in `pars`:
       Required:  N, beta0, gamma, rho, alpha, epsilon, phi
       Common:    delta (or delta0), compliance_max, k, beta_floor
       Optional:  gamma_F (default 0.0), omega (waning; default 0.0),
                  P0 (sigmoid midpoint; default 0.03),
-                 C50 (Hill half-sat; default 7e-4), h (Hill exponent; default 1.5)
+                 C50 (Hill half-saturation; default 7e-4), 
+                 h (Hill exponent; default 1.5)
     """
     import numpy as np
 
     S, I, C, R, P, F = y
 
-    # --- STABILITY CLIPPING ---
+    ###### Stability Clipping ######
     # We clip the parameters *inside* the ODE function to prevent
     # the optimizer from ever passing in values that cause an overflow.
-    # This is the final and most robust line of defense.
     
     N         = float(pars["N"])
     beta_0    = np.clip(float(pars.get("beta0", pars.get("beta_0"))), 0.0, 2.0)
@@ -45,10 +85,10 @@ def sirc_pf_rhs(t, y, pars):
     C50       = np.clip(float(pars.get("C50", 7.0e-4)), 1e-6, 0.1)
     h_exp     = np.clip(float(pars.get("h", 1.5)), 0.1, 10.0)
 
+
     compliance = comp_max * (1.0 / (1.0 + np.exp(-k_sig * (P - P0))))
 
-    # effective transmission with floor
-    beta_min = beta_0 * beta_floor
+    beta_min = beta_0 * beta_floor # effective transmission with floor
     beta_eff = beta_min + (beta_0 - beta_min) * (1.0 - compliance)
 
     total_infected = I + C
@@ -72,7 +112,45 @@ def sirc_pf_rhs(t, y, pars):
 
 
 def simulate(pars, y0, t_eval, rtol=1e-7, atol=1e-9):
-    """Deterministic simulation with LSODA."""
+    """
+    Runs a deterministic simulation of the SIRC-PF model. using 
+    `scipy.integrate.solve_ivp` with the "LSODA" method to solve 
+    the ODE system.
+
+    Also calculates the approximate daily incidence by computing the
+    change in the Susceptible compartment `S` at each time step
+    ( `inc[t] ≈ S[t-1] - S[t]` ).
+
+    Parameters
+    ----------
+    pars : dict
+        The parameter dictionary for `sirc_pf_rhs`.
+    y0 : np.ndarray
+        The 6-state initial conditions [S0, I0, C0, R0, P0, F0].
+    t_eval : np.ndarray
+        An array of time points at which to store the solution.
+    rtol : float, optional
+        Relative tolerance for the ODE solver.
+    atol : float, optional
+        Absolute tolerance for the ODE solver.
+
+    Returns
+    -------
+    tuple (Y, inc)
+        Y : np.ndarray
+            A (T, 6) array containing the state vector at each time
+            in `t_eval`.
+        inc : np.ndarray
+            A (T,) array of the calculated daily incidence.
+
+    Raises
+    ------
+    ValueError
+        If the initial conditions `y0` contain non-finite values.
+    RuntimeError
+        If the `solve_ivp` ODE integration fails.
+
+    """
     
     if not np.all(np.isfinite(y0)):
         raise ValueError(f"simulate(): non-finite y0 {y0}")
@@ -92,6 +170,10 @@ def simulate(pars, y0, t_eval, rtol=1e-7, atol=1e-9):
     Y = sol.y.T  # shape (T, 6)
     # Approximate discrete daily incidence from S(t)
     S = Y[:, 0]
+    
+    # We could also calculates the approximate daily incidence by computing the
+    # change in the Susceptible compartment `S` at each time step:
     # incidence_day[t] ≈ max(S[t-1]-S[t], 0)
+    
     inc = np.maximum(-np.diff(S, prepend=S[0]), 0.0)
     return Y, inc

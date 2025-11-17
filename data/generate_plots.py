@@ -1,17 +1,37 @@
+"""
+Generates and saves a suite of COVID-19 case plots.
+
+This module loads the cleaned ``cases.csv`` file and the ``SLICES``
+configuration from ``config.py``. It calculates a 7-day rolling average
+on the case data.
+
+It defines four distinct plotting functions:
+1.  ``generate_overview_plot``: A single plot of the entire timeline with
+    all key policy events from all slices annotated.
+2.  ``generate_sliced_plot``: Individual plots for each specific time slice.
+3.  ``generate_combined_slices_plot``: A single plot of the entire timeline
+    with colored spans highlighting each slice.
+4.  ``generate_grid_plot``: A 3x2 grid figure containing all individual
+    slice plots for easy comparison.
+
+When executed as a script, it calls all plotting functions and saves
+the resulting ``.png`` files to the ``PLOT_OUTPUT_FOLDER``.
+"""
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime
 import os
-import numpy as np
-from config import SLICES # <--- CHANGE: Import slices from config
 
-# --- Configuration ---
+from config import SLICES
+
+# -----------------------------------
+# CONFIGS & LOADING
+
 PLOT_OUTPUT_FOLDER = 'covid_plots'
 os.makedirs(PLOT_OUTPUT_FOLDER, exist_ok=True)
-# ---------------------
 
-# --- Data Loading (Required for plotting logic) ---
 try:
     df = pd.read_csv('cases.csv')
     df['date'] = pd.to_datetime(df['date'])
@@ -20,11 +40,35 @@ try:
 except Exception as e:
     print(f"Error loading data: {e}")
     exit()
-
-# --- Plotting Functions (Updated to accept slices_data) ---
+    
+# -----------------------------------
+# PLOTTING FUNCTIONS
 
 # 1. Overview Plot (Full Timeline)
 def generate_overview_plot(df_full, slices_data, output_folder):
+    """
+    Generates a plot of the full timeline with all events annotated.
+
+    This function aggregates all unique events from all provided slices
+    and plots them on a single graph of the entire smoothed case timeline.
+    Event labels are staggered vertically to improve readability.
+
+    Parameters
+    ----------
+    df_full : pd.DataFrame
+        The complete, time-indexed DataFrame containing 'cases_smooth'.
+    slices_data : list of dict
+        The list of slice definitions (from ``config.py``). Each dict
+        must contain an 'events' key.
+    output_folder : str
+        The directory path where the plot image will be saved.
+
+    Returns
+    -------
+    None
+        Saves the plot as 'annotated_overview_plot_fixed.png' in the
+        ``output_folder``.
+    """
     plt.figure(figsize=(18, 8))
     
     y_max = df_full['cases_smooth'].max()
@@ -76,6 +120,37 @@ def generate_overview_plot(df_full, slices_data, output_folder):
 
 # 2. Individual Sliced Plots
 def generate_sliced_plot(df_full, start_date, end_date, slice_name, events, output_folder):
+    """
+    Generates a plot for a single, specific time slice.
+
+    This function filters the main DataFrame to the given date range
+    and plots both the raw 'cases' and the 'cases_smooth' data. It
+    annotates the plot with the specific events provided for this slice.
+
+    Parameters
+    ----------
+    df_full : pd.DataFrame
+        The complete, time-indexed DataFrame containing 'cases' and
+        'cases_smooth'.
+    start_date : str or pd.Timestamp
+        The start date for the slice (inclusive).
+    end_date : str or pd.Timestamp
+        The end date for the slice (inclusive).
+    slice_name : str
+        A descriptive name for the slice, used in the plot title
+        and filename.
+    events : list of tuple
+        A list of events specific to this slice. Each tuple should be
+        in the format (date_str, label, color).
+    output_folder : str
+        The directory path where the plot image will be saved.
+
+    Returns
+    -------
+    None
+        Saves the plot as 'slice_{slice_name}_fixed.png' in the
+        ``output_folder``.
+    """
     df_slice = df_full.loc[start_date:end_date].copy()
     
     plt.figure(figsize=(12, 6))
@@ -131,6 +206,30 @@ def generate_sliced_plot(df_full, start_date, end_date, slice_name, events, outp
 
 # 3. Combined Slices Plot
 def generate_combined_slices_plot(df_full, slices_data, output_folder):
+    """
+    Generates a plot of the full timeline with colored spans for each slice.
+
+    This function plots the entire smoothed case timeline and then uses
+    ``axvspan`` to draw semi-transparent colored rectangles over the
+    background, corresponding to the start and end dates of each slice.
+    It adds a legend to identify the slices.
+
+    Parameters
+    ----------
+    df_full : pd.DataFrame
+        The complete, time-indexed DataFrame containing 'cases_smooth'.
+    slices_data : list of dict
+        The list of slice definitions (from ``config.py``). Each dict
+        must contain 'start', 'end', and 'name' keys.
+    output_folder : str
+        The directory path where the plot image will be saved.
+
+    Returns
+    -------
+    None
+        Saves the plot as 'combined_slices_plot_fixed.png' in the
+        ``output_folder``.
+    """
     plt.figure(figsize=(18, 8))
     
     plt.plot(df_full.index, df_full['cases_smooth'], color='blue', linewidth=2, label='Moyenne Mobile 7 Jours')
@@ -183,6 +282,36 @@ def generate_combined_slices_plot(df_full, slices_data, output_folder):
 
 # 4. Grid Sliced Plots
 def generate_grid_plot(df_full, slices_data, output_folder):
+    """
+    Generates a 3x2 grid of plots, each showing an individual slice.
+
+    This function creates a single figure with 6 subplots (axes) and
+    iterates through the ``slices_data``, placing each individual
+    slice plot (using the same logic as ``generate_sliced_plot``) onto
+    one of the subplots.
+
+    Parameters
+    ----------
+    df_full : pd.DataFrame
+        The complete, time-indexed DataFrame containing 'cases' and
+        'cases_smooth'.
+    slices_data : list of dict
+        The list of slice definitions (from ``config.py``). This
+        is expected to have 6 entries to fill the 3x2 grid.
+    output_folder : str
+        The directory path where the plot image will be saved.
+
+    Returns
+    -------
+    None
+        Saves the plot as 'sliced_plots_3x2_grid.png' in the
+        ``output_folder``.
+    
+    Notes
+    -----
+    The subplot layout is hardcoded to 3 rows and 2 columns. If the
+    number of slices changes from 6, this layout may need adjustment.
+    """
     fig, axes = plt.subplots(nrows=3, ncols=2, figsize=(16, 18), constrained_layout=True)
     axes = axes.flatten()
 
@@ -254,8 +383,8 @@ def generate_grid_plot(df_full, slices_data, output_folder):
     plt.savefig(filename, bbox_inches='tight')
     plt.close()
 
+# -----------------------------------
 
-# --- Main Execution Block ---
 if __name__ == '__main__':
     print("Starting plot generation...")
     

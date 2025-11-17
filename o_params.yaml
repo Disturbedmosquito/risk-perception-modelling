@@ -15,16 +15,21 @@ free_names:
   - beta_floor
   - rho_obs       # reporting fraction (you can keep a single rho if used both places)
   - log_theta # NB dispersion (log)
-  - I0
-  - C0
-  - P0
-  - F0
-  - R0
+  - I0 #y0 params 
+  - C0 #
+  - P0 #
+  - F0 #
+  - R0 #
+  - a1    #7 day harmonic params
+  - b1    #
+  - a2    #
+  - b2    #
+  - delay_mean
 
 bounds:
   # (min, max) for each free param, aligned with free_names
   - [0.05, 2.0]    # beta0
-  - [0.05, 0.5]    # gamma
+  - [0.05, 1.0]    # gamma
   - [0.01, 0.5]    # rho (reporting rate in ODE if used)
   - [0.0, 2.0]     # alpha
   - [0.0, 1.0]     # delta
@@ -34,15 +39,18 @@ bounds:
   - [0.6, 0.9]     # compliance_max
   - [0.1, 0.6]     # beta_floor
   - [0.05, 0.9]    # rho (obs model scale)  <-- if duplicate, remove one occurrence
-  - [-5.0, 5.0]    # log_theta
-  - [1.0, 100.0]  # I0
-  - [1.0, 100.0]  # C0
+  - [-5.0, 5.0]    # log_theta 
+  - [1.0, 8800000]  # I0
+  - [1.0, 8800000.0]  # C0
   - [0.0, 1.0]     # P0
   - [0.0, 1.0]     # F0
-  - [0.0, 1.0]
-
+  - [0.0, 8800000] # R0
+  - [-0.5, 0.5]  # a1
+  - [-0.5, 0.5]  # b1
+  - [-0.5, 0.5]  # a2
+  - [-0.5, 0.5]  # b2
+  - [2.0, 5.0] 
 obs:
-  delay_mean: 3.0
   delay_sd: 2.0
   delay_maxlag: 14
 
@@ -52,6 +60,7 @@ fit:
   pso_iters: 200
   local_seeds: 8
   seed: 123
+  y0_anchor_weight: 100
 
 cv:
   initial_train: 150
@@ -62,4 +71,3 @@ profiles:
   beta0: [0.05, 1.0, 21]
   k: [0.5, 12.0, 25]
   alpha: [0.0, 2.0, 21]
-  rho: [0.05, 0.9, 21]

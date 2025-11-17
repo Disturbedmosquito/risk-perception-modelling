@@ -130,7 +130,7 @@ def negloglik_nb_FIXED(params_vec, param_names, bounds, fixed,
 # --- 4. Fix for dynamics.py: equilibrium_newton() ---
 print("\n[Test 4: dynamics.py equilibrium_newton()]")
 
-def sirc_pf_rhs_REDUCED(t, y_reduced, pars, N):
+def sirc_pf_rhs_reduced(t, y_reduced, pars, N):
     """
     A wrapper for the RHS function that only solves for [I, C, R, P, F].
     S is calculated from the conservation law.
@@ -146,7 +146,7 @@ def sirc_pf_rhs_REDUCED(t, y_reduced, pars, N):
     # We can skip dSdt because dS/dt = -(dI/dt + dC/dt + dR/dt)
     return np.array([dIdt, dCdt, dRdt, dPdt, dFdt])
 
-def numerical_jacobian_REDUCED(fun_reduced, y_star_reduced, pars, N, eps=1e-6):
+def numerical_jacobian_reduced(fun_reduced, y_star_reduced, pars, N, eps=1e-6):
     """
     A wrapper for the jacobian function that works on the reduced system.
     """
@@ -171,7 +171,7 @@ def equilibrium_newton_FIXED(fun_reduced, y_guess_reduced, pars, N, max_iter=50,
             return y # Return the 5-state vector
         
         # Use the reduced jacobian
-        J = numerical_jacobian_REDUCED(fun_reduced, y, pars, N)
+        J = numerical_jacobian_reduced(fun_reduced, y, pars, N)
         
         try:
             step = np.linalg.solve(J, -f)
@@ -243,7 +243,7 @@ try:
     y_guess_reduced = y_guess_full[1:] # [I, C, R, P, F]
     
     y_star_reduced = equilibrium_newton_FIXED(
-        sirc_pf_rhs_REDUCED, y_guess_reduced, pars, N
+        sirc_pf_rhs_reduced, y_guess_reduced, pars, N
     )
     
     # Reconstruct full state

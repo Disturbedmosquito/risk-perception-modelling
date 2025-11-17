@@ -1,3 +1,15 @@
+"""
+Config file for ``data/data_slicer.py`` and ``data/generate_plots.py``
+
+Containes dates for data slicing and important pandemic events [1]
+
+References
+----------
+..  [1] « Ligne du temps COVID-19 au Québec | INSPQ », Institut national 
+    de santé publique du Québec. Consulté le: 16 novembre 2025. [En ligne]. 
+    Disponible à: https://www.inspq.qc.ca/covid-19/donnees/ligne-du-temps
+"""
+
 SLICES = [
     {
         'name': 'P1_Épidémie_initiale_et_confinement',
